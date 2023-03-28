@@ -1,8 +1,20 @@
 ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fedifetcher-pvc
+spec:
+  accessModes:
+    - ReadWriteOnce
+  volumeMode: Filesystem
+  resources:
+    requests:
+      storage: 100Mi
+---
 apiVersion: batch/v1
 kind: CronJob
 metadata:
-  name: mastodon-get-replies
+  name: FediFetcher
 spec:
   # Run every 2 hours
   schedule: "0 */2 * * *"
@@ -13,11 +25,23 @@ spec:
     spec:
       template:
         spec:
+          volumes:
+            - name: artifacts
+              persistentVolumeClaim:
+                claimName: fedifetcher-pvc
           containers:
-            - name: mastodon-get-replies
-              image: ghcr.io/nanos/mastodon_get_replies:latest
+            - name: FediFetcher
+              image: ghcr.io/nanos/fedifetcher:latest
               args:
                 - --server=your.server.social
                 - --access-token=TOKEN
+                - --home-timeline-length
+                - "200"
+                - --max-followings
+                - "80"
+                - --from-notification
+                - "4"
+              volumeMounts:
+                - name: artifacts
+                  mountPath: /app/artifacts
           restartPolicy: Never
-
